@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Guide to AI English Learning Apps</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Chosen Palette: Warm Neutrals & Soft Teal -->
+    <!-- Application Structure Plan: The application is designed as a user-centric, task-oriented dashboard. Instead of a linear report, it guides the user through an interactive journey. It starts with a "Learning Path" finder to provide immediate, personalized recommendations. This is followed by an interactive "Comparison Dashboard" with a dynamic radar chart and filtering, allowing users to visually explore app strengths. A "Deep Dive" section uses modals to offer detailed information without cluttering the main view. This structure was chosen to transform passive reading into active exploration, making it faster and more intuitive for a learner to find the right tools for their specific needs and level, directly addressing the core message of the source report. -->
+    <!-- Visualization & Content Choices: 
+        - Report Info: Recommended learning strategies for different levels. -> Goal: Guide/Personalize. -> Viz/Method: Interactive button-based "Learning Path" tool with a Gemini-powered study plan generator. -> Interaction: User clicks their proficiency level to see recommended apps, then clicks a "Generate Plan" button. -> Justification: The Gemini API call transforms a static recommendation into a dynamic, actionable study plan, adding immense user value.
+        - Report Info: Feature Matrix table with star ratings. -> Goal: Compare. -> Viz/Method: Dynamic Radar Chart (Chart.js) and filterable content cards. -> Interaction: User selects up to 3 apps via checkboxes to see them visually compared on the chart across four skills. -> Justification: Translates dense tabular data into an immediate, intuitive visual comparison.
+        - Report Info: Detailed app descriptions and analyses. -> Goal: Inform/Detail. -> Viz/Method: Card-based layout with modals, enhanced with a Gemini-powered conversation starter for speaking apps. -> Interaction: Clicking "Learn More" opens a modal. For speaking apps, a "Generate Topic" button calls Gemini for practice prompts. -> Justification: Solves a common user pain point ("what to talk about?") and encourages immediate use of the recommended apps.
+        - Report Info: Analysis of Freemium Models. -> Goal: Explain. -> Viz/Method: Icon-driven three-column layout. -> Interaction: Static display with clear iconography. -> Justification: Breaks down a complex conceptual topic into easily digestible visual chunks.
+    -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+        .chart-container {
+            position: relative;
+            margin: auto;
+            height: 40vh;
+            width: 100%;
+            max-width: 600px;
+            max-height: 500px;
+        }
+        .modal-backdrop {
+            transition: opacity 0.3s ease;
+        }
+        .modal-content {
+            transition: transform 0.3s ease;
+        }
+        .active-nav {
+            color: #0d9488; /* teal-600 */
+            font-weight: 600;
+        }
+        .inactive-nav {
+            color: #4b5563; /* gray-600 */
+        }
+        .gemini-loader {
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #0d9488;
+            border-radius: 50%;
+            width: 16px;
+            height: 16px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <header class="bg-white/80 backdrop-blur-lg sticky top-0 z-40 border-b border-slate-200">
+        <div class="container mx-auto px-4">
+            <div class="flex items-center justify-between h-16">
+                <h1 class="text-xl font-bold text-teal-700">AI English Apps</h1>
+                <nav class="hidden md:flex items-center space-x-6 text-sm font-medium">
+                    <a href="#pathfinder" class="hover:text-teal-600 transition-colors">Find Your Path</a>
+                    <a href="#compare" class="hover:text-teal-600 transition-colors">Compare Apps</a>
+                    <a href="#profiles" class="hover:text-teal-600 transition-colors">App Profiles</a>
+                    <a href="#models" class="hover:text-teal-600 transition-colors">'Free' Models</a>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main class="container mx-auto px-4 py-8 md:py-12">
+
+        <section class="text-center mb-16">
+            <h2 class="text-4xl md:text-5xl font-bold tracking-tight mb-4">Your Guide to Free AI English Learning</h2>
+            <p class="text-lg text-slate-600 max-w-3xl mx-auto">The perfect free English app doesn't exist. But the perfect free <span class="font-semibold text-teal-600">toolkit</span> does. This guide helps you build a custom learning system by combining the best features of top-rated, AI-powered Android apps.</p>
+        </section>
+
+        <section id="pathfinder" class="mb-16 bg-white p-8 rounded-xl shadow-sm border border-slate-100">
+            <div class="text-center mb-8">
+                <h3 class="text-3xl font-bold mb-2">Find Your Learning Path</h3>
+                <p class="text-slate-600 max-w-2xl mx-auto">Select your current English level to see a recommended portfolio of apps. Then, let our AI generate a custom study plan to get you started!</p>
+            </div>
+            <div class="flex justify-center space-x-2 md:space-x-4 mb-8">
+                <button onclick="showPath('beginner')" class="path-btn bg-teal-500 hover:bg-teal-600 text-white font-semibold py-3 px-6 rounded-lg transition-all shadow-sm">Beginner (A1-A2)</button>
+                <button onclick="showPath('intermediate')" class="path-btn bg-white hover:bg-slate-100 text-slate-700 font-semibold py-3 px-6 rounded-lg transition-all border border-slate-300">Intermediate (B1-B2)</button>
+                <button onclick="showPath('advanced')" class="path-btn bg-white hover:bg-slate-100 text-slate-700 font-semibold py-3 px-6 rounded-lg transition-all border border-slate-300">Advanced (C1+)</button>
+            </div>
+            <div id="path-results" class="bg-slate-50 p-6 rounded-lg min-h-[200px] transition-all duration-300 ease-in-out">
+            </div>
+        </section>
+
+        <section id="compare" class="mb-16">
+             <div class="text-center mb-8">
+                <h3 class="text-3xl font-bold mb-2">Compare the Apps</h3>
+                <p class="text-slate-600 max-w-2xl mx-auto">Visually compare the strengths and weaknesses of the top apps. Select up to three applications from the list below to see how they stack up against each other on core language skills in the chart.</p>
+            </div>
+            <div class="chart-container mb-8">
+                <canvas id="skillRadarChart"></canvas>
+            </div>
+            <div id="app-selection" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
+            </div>
+        </section>
+        
+        <section id="profiles" class="mb-16">
+            <div class="text-center mb-8">
+                <h3 class="text-3xl font-bold mb-2">Deep Dive: App Profiles</h3>
+                <p class="text-slate-600 max-w-2xl mx-auto">Explore detailed analyses of each application. Click on any app to learn about its AI features, skill coverage, free tier limitations, and unique strengths.</p>
+            </div>
+            <div id="app-cards-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            </div>
+        </section>
+
+        <section id="models" class="bg-white p-8 rounded-xl shadow-sm border border-slate-100">
+            <div class="text-center mb-8">
+                <h3 class="text-3xl font-bold mb-2">Understanding the 'Cost' of Free</h3>
+                <p class="text-slate-600 max-w-2xl mx-auto">"Free" apps aren't truly free. They use different models to generate revenue. Understanding these helps you navigate their limitations and build your toolkit wisely.</p>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                <div class="text-center p-6 bg-slate-50 rounded-lg">
+                    <div class="text-4xl mb-4">⏱️</div>
+                    <h4 class="font-bold text-lg mb-2">Time & Ad-Based</h4>
+                    <p class="text-sm text-slate-600">You get full access to the curriculum, but "pay" with your time by watching ads and dealing with progress limits (like Duolingo's heart system).</p>
+                </div>
+                <div class="text-center p-6 bg-slate-50 rounded-lg">
+                    <div class="text-4xl mb-4">🔌</div>
+                    <h4 class="font-bold text-lg mb-2">Usage-Based</h4>
+                    <p class="text-sm text-slate-600">You get a premium-level experience, but for a strictly limited time each day (like Talkpal's 10-minute cap). Great for focused practice.</p>
+                </div>
+                <div class="text-center p-6 bg-slate-50 rounded-lg">
+                    <div class="text-4xl mb-4">🔐</div>
+                    <h4 class="font-bold text-lg mb-2">Feature-Based</h4>
+                    <p class="text-sm text-slate-600">The free version is a demo. It shows off the core technology but locks the best lessons and tools behind a paywall (like ELSA Speak).</p>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="bg-slate-800 text-slate-300 py-8">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-sm">This interactive report was generated to provide a dynamic overview of the AI English learning app market.</p>
+            <p class="text-xs text-slate-400 mt-2">Content derived from "An In-Depth Analysis of AI-Powered English Language Learning Applications for Android".</p>
+        </div>
+    </footer>
+    
+    <div id="modal-backdrop" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden modal-backdrop">
+        <div id="modal-content" class="absolute bg-white w-11/12 md:max-w-2xl max-h-[90vh] overflow-y-auto p-8 rounded-xl shadow-2xl top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 modal-content transform scale-95">
+            <button onclick="closeModal()" class="absolute top-4 right-4 text-slate-500 hover:text-slate-800 transition-colors">&times;</button>
+            <div id="modal-body"></div>
+        </div>
+    </div>
+
+
+<script>
+const appData = [
+    { 
+        id: 'duolingo',
+        name: 'Duolingo', 
+        origin: 'USA',
+        focus: 'All-Rounder',
+        skills: { listening: 4, speaking: 3, reading: 4, writing: 3 },
+        levels: 'Beginner to Intermediate (A1-B1)',
+        ui: 'Gamified, Cheerful, Addictive',
+        aiFeature: 'Personalized lesson pacing and difficulty adjustment.',
+        freeValue: 'Full access to the entire course curriculum.',
+        freeLimits: 'Intrusive ads and a "heart" system that penalizes mistakes, throttling progress.',
+        summary: 'The world\'s most popular education app, great for building a foundation in a fun, game-like way.',
+        icon: '🦉'
+    },
+    { 
+        id: 'memrise',
+        name: 'Memrise', 
+        origin: 'UK',
+        focus: 'Vocabulary',
+        skills: { listening: 5, speaking: 3, reading: 4, writing: 3 },
+        levels: 'All Levels (especially with user-created content)',
+        ui: 'Visual, Video-centric, Interactive',
+        aiFeature: 'Spaced repetition algorithm for vocabulary; "MemBot" AI for chat practice.',
+        freeValue: 'Access to all official and user-created courses.',
+        freeLimits: 'Key features (advanced review, grammar/chat bots, offline mode) are paywalled.',
+        summary: 'A vocabulary powerhouse using spaced repetition and thousands of videos of native speakers.',
+        icon: '🌱'
+    },
+    { 
+        id: 'elsa',
+        name: 'ELSA Speak', 
+        origin: 'USA',
+        focus: 'Speaking Practice',
+        skills: { listening: 5, speaking: 5, reading: 2, writing: 2 },
+        levels: 'Intermediate to Advanced (B1-C1)',
+        ui: 'Professional, Data-driven, Diagnostic',
+        aiFeature: 'Proprietary speech recognition for phoneme-level pronunciation and accent feedback.',
+        freeValue: 'Serves as a powerful demo of the core technology.',
+        freeLimits: 'Free version is extremely limited; vast majority of 8,000+ lessons are paywalled.',
+        summary: 'The market leader for improving pronunciation and accent clarity with detailed AI feedback.',
+        icon: '🎙️'
+    },
+    { 
+        id: 'loora',
+        name: 'Loora AI', 
+        origin: 'Switzerland',
+        focus: 'Speaking Practice',
+        skills: { listening: 4, speaking: 4, reading: 3, writing: 3 },
+        levels: 'Intermediate to Advanced (B1-C1)',
+        ui: 'Clean, Intuitive, Chat-based',
+        aiFeature: 'GPT-powered conversational AI tutor for open-ended practice and role-playing.',
+        freeValue: 'One high-quality, free lesson per day.',
+        freeLimits: 'Daily usage is strictly limited to a single session, preventing extended practice.',
+        summary: 'A personal AI English coach for "as real as it gets" conversations with real-time feedback.',
+        icon: '💬'
+    },
+    { 
+        id: 'talkpal',
+        name: 'Talkpal', 
+        origin: 'USA',
+        focus: 'Speaking Practice',
+        skills: { listening: 4, speaking: 4, reading: 3, writing: 3 },
+        levels: 'Intermediate to Advanced (B1-C1)',
+        ui: 'Modern, Intuitive, Chat-based',
+        aiFeature: 'GPT-powered conversational AI with multiple modes (Chat, Debate, Roleplay).',
+        freeValue: 'Access to all features.',
+        freeLimits: 'Usage is strictly capped at 10 minutes per day, making it a tool for short, daily habits only.',
+        summary: 'An AI tutor with varied modes like debates and roleplays for engaging daily speaking practice.',
+        icon: '🗣️'
+    },
+    { 
+        id: 'cake',
+        name: 'Cake', 
+        origin: 'South Korea',
+        focus: 'Vocabulary',
+        skills: { listening: 4, speaking: 3, reading: 2, writing: 2 },
+        levels: 'Beginner to Intermediate (A1-B2)',
+        ui: 'Fun, Video-centric, Bite-sized',
+        aiFeature: 'AI pronunciation check on short phrases from real media.',
+        freeValue: 'Good for daily, casual listening practice.',
+        freeLimits: 'Operates on a "heart" system for free users, limiting access to lessons and features.',
+        summary: 'Learn with short, fun clips from real-world media like movies and TV shows.',
+        icon: '🍰'
+    }
+];
+
+const learningPaths = {
+    beginner: {
+        title: "Pathway for the Motivated Beginner (A1-A2)",
+        description: "Your goal is to build a strong foundation in vocabulary and grammar. This combination provides a structured curriculum and essential exposure to authentic speech.",
+        apps: ['duolingo', 'memrise'],
+        roles: {
+            duolingo: '<strong>Primary Engine:</strong> Use for daily structured lessons to build core grammar and vocabulary.',
+            memrise: '<strong>Essential Supplement:</strong> Use for authentic listening practice with native speaker videos, a crucial element Duolingo lacks.'
+        }
+    },
+    intermediate: {
+        title: "Pathway for the Intermediate Learner (B1-B2)",
+        description: "Your focus is shifting to conversational fluency and activating your passive knowledge. This toolkit provides a safe space for daily practice and tools for refinement.",
+        apps: ['talkpal', 'elsa', 'cake'],
+        roles: {
+            talkpal: '<strong>Primary Engine:</strong> Use the 10-minute daily session for low-stakes, active speaking practice with an AI tutor.',
+            elsa: '<strong>Essential Supplement:</strong> Use the free dictionary feature for instant, precise pronunciation checks on difficult words.',
+            cake: '<strong>Essential Supplement:</strong> Use for improving comprehension of natural, fast-paced English from real media clips.'
+        }
+    },
+    advanced: {
+        title: "Pathway for the Advanced Learner (C1+)",
+        description: "Your goal is refinement, nuance, and precision. This combination helps you master sophisticated vocabulary and fine-tune your pronunciation to sound more natural.",
+        apps: ['elsa', 'talkpal', 'memrise'],
+        roles: {
+            elsa: '<strong>Primary Engine:</strong> Use for targeted, phoneme-level feedback to refine your accent and intonation.',
+            talkpal: '<strong>Essential Supplement:</strong> Use the "Debates" mode to practice constructing complex arguments under pressure.',
+            memrise: '<strong>Essential Supplement:</strong> Use the website to find and add specialized user-created courses (e.g., academic or business English).'
+        }
+    }
+};
+
+let skillRadarChart;
+let selectedAppsForChart = [];
+let currentLevel = 'beginner';
+
+document.addEventListener('DOMContentLoaded', () => {
+    initRadarChart();
+    renderAppSelection();
+    renderAppCards();
+    showPath('beginner');
+});
+
+function initRadarChart() {
+    const ctx = document.getElementById('skillRadarChart').getContext('2d');
+    skillRadarChart = new Chart(ctx, {
+        type: 'radar',
+        data: {
+            labels: ['Listening', 'Speaking', 'Reading', 'Writing'],
+            datasets: []
+        },
+        options: {
+            maintainAspectRatio: false,
+            scales: {
+                r: {
+                    angleLines: { display: true, color: 'rgba(0, 0, 0, 0.1)' },
+                    suggestedMin: 0,
+                    suggestedMax: 5,
+                    grid: { color: 'rgba(0, 0, 0, 0.1)' },
+                    pointLabels: { font: { size: 14 } },
+                    ticks: {
+                        backdropColor: 'rgba(255, 255, 255, 0.75)',
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.dataset.label}: ${context.raw}`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderAppSelection() {
+    const container = document.getElementById('app-selection');
+    container.innerHTML = appData.map(app => `
+        <div class="flex items-center space-x-2">
+            <input type="checkbox" id="check-${app.id}" value="${app.id}" onchange="updateChartSelection(this)" class="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500">
+            <label for="check-${app.id}" class="text-sm font-medium text-gray-700">${app.name}</label>
+        </div>
+    `).join('');
+}
+
+function updateChartSelection(checkbox) {
+    if (checkbox.checked) {
+        if (selectedAppsForChart.length < 3) {
+            selectedAppsForChart.push(checkbox.value);
+        } else {
+            checkbox.checked = false;
+            // Replaced alert with a less intrusive notification if possible, but alert is fine for this context.
+            const tempAlert = document.createElement('div');
+            tempAlert.textContent = 'You can select a maximum of 3 apps to compare.';
+            tempAlert.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:red;color:white;padding:10px;border-radius:5px;z-index:100;';
+            document.body.appendChild(tempAlert);
+            setTimeout(() => tempAlert.remove(), 3000);
+        }
+    } else {
+        selectedAppsForChart = selectedAppsForChart.filter(id => id !== checkbox.value);
+    }
+    updateRadarChart();
+}
+
+function updateRadarChart() {
+    const colors = [
+        { bg: 'rgba(13, 148, 136, 0.2)', border: 'rgb(13, 148, 136)' }, // teal-600
+        { bg: 'rgba(249, 115, 22, 0.2)', border: 'rgb(249, 115, 22)' }, // orange-500
+        { bg: 'rgba(139, 92, 246, 0.2)', border: 'rgb(139, 92, 246)' } // violet-500
+    ];
+
+    const datasets = selectedAppsForChart.map((appId, index) => {
+        const app = appData.find(a => a.id === appId);
+        return {
+            label: app.name,
+            data: [app.skills.listening, app.skills.speaking, app.skills.reading, app.skills.writing],
+            backgroundColor: colors[index].bg,
+            borderColor: colors[index].border,
+            borderWidth: 2,
+            pointBackgroundColor: colors[index].border,
+            pointBorderColor: '#fff',
+            pointHoverBackgroundColor: '#fff',
+            pointHoverBorderColor: colors[index].border
+        };
+    });
+
+    skillRadarChart.data.datasets = datasets;
+    skillRadarChart.update();
+}
+
+function renderAppCards() {
+    const container = document.getElementById('app-cards-container');
+    container.innerHTML = appData.map(app => `
+        <div class="bg-white border border-slate-100 rounded-xl p-6 flex flex-col shadow-sm hover:shadow-lg transition-shadow duration-300">
+            <div class="flex items-start mb-4">
+                 <div class="text-3xl mr-4">${app.icon}</div>
+                <div>
+                    <h4 class="text-xl font-bold">${app.name}</h4>
+                    <span class="text-sm text-slate-500">${app.origin} &bull; ${app.focus}</span>
+                </div>
+            </div>
+            <p class="text-slate-600 mb-4 flex-grow">${app.summary}</p>
+            <button onclick="openModal('${app.id}')" class="mt-auto w-full bg-teal-50 hover:bg-teal-100 text-teal-700 font-semibold py-2 px-4 rounded-lg transition-colors">Learn More</button>
+        </div>
+    `).join('');
+}
+
+function openModal(appId) {
+    const app = appData.find(a => a.id === appId);
+    const modalBody = document.getElementById('modal-body');
+
+    let geminiFeatureHtml = '';
+    if (app.focus === 'Speaking Practice') {
+        geminiFeatureHtml = `
+            <div class="bg-purple-50 p-4 rounded-lg mt-4">
+                <h5 class="font-semibold text-lg text-purple-800">✨ AI Practice Prompts</h5>
+                <p class="text-purple-700 text-sm mb-3">Stuck on what to talk about? Let AI generate a topic for you!</p>
+                <button id="gemini-topic-btn" onclick="generateConversationTopic(this)" class="bg-purple-500 hover:bg-purple-600 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center justify-center w-full">
+                    <span>Generate a Topic</span>
+                </button>
+                <div id="gemini-topic-result" class="mt-3 text-purple-900 font-medium"></div>
+            </div>
+        `;
+    }
+
+    modalBody.innerHTML = `
+        <div class="flex items-center mb-6">
+            <span class="text-5xl mr-4">${app.icon}</span>
+            <div>
+                <h3 class="text-3xl font-bold">${app.name}</h3>
+                <p class="text-slate-500">${app.origin} &bull; ${app.focus}</p>
+            </div>
+        </div>
+        <div class="space-y-4 text-slate-700">
+            <div><h5 class="font-semibold text-lg">Primary AI Feature</h5><p>${app.aiFeature}</p></div>
+            <div><h5 class="font-semibold text-lg">Proficiency Focus</h5><p>${app.levels}</p></div>
+            <div><h5 class="font-semibold text-lg">User Experience</h5><p>${app.ui}</p></div>
+            <div class="bg-blue-50 p-4 rounded-lg"><h5 class="font-semibold text-lg text-blue-800">Free Tier Value</h5><p class="text-blue-700">${app.freeValue}</p></div>
+            <div class="bg-amber-50 p-4 rounded-lg"><h5 class="font-semibold text-lg text-amber-800">Key Limitations</h5><p class="text-amber-700">${app.freeLimits}</p></div>
+            ${geminiFeatureHtml}
+        </div>
+    `;
+    document.getElementById('modal-backdrop').classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+     setTimeout(() => {
+        document.getElementById('modal-backdrop').classList.remove('opacity-0');
+        document.getElementById('modal-content').classList.remove('scale-95');
+    }, 10);
+}
+
+function closeModal() {
+    document.getElementById('modal-backdrop').classList.add('opacity-0');
+    document.getElementById('modal-content').classList.add('scale-95');
+    setTimeout(() => {
+        document.getElementById('modal-backdrop').classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }, 300);
+}
+
+function showPath(level) {
+    currentLevel = level;
+    const path = learningPaths[level];
+    const container = document.getElementById('path-results');
+    
+    let appHtml = path.apps.map(appId => {
+        const app = appData.find(a => a.id === appId);
+        return `
+            <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-200">
+                <div class="flex items-center mb-2">
+                    <span class="text-2xl mr-3">${app.icon}</span>
+                    <h5 class="font-bold text-lg">${app.name}</h5>
+                </div>
+                <p class="text-sm text-slate-600">${path.roles[appId]}</p>
+            </div>
+        `;
+    }).join('');
+
+    container.innerHTML = `
+        <h4 class="font-bold text-xl mb-2">${path.title}</h4>
+        <p class="text-slate-600 mb-4">${path.description}</p>
+        <div class="grid grid-cols-1 md:grid-cols-${path.apps.length > 1 ? path.apps.length : 2} gap-4">
+            ${appHtml}
+        </div>
+        <div class="mt-6 text-center">
+            <button id="gemini-plan-btn" onclick="generateStudyPlan(this)" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md flex items-center justify-center mx-auto">
+                <span>✨ Generate a Custom 1-Week Study Plan</span>
+            </button>
+        </div>
+        <div id="gemini-plan-result" class="mt-6 bg-white p-4 rounded-lg shadow-inner text-sm text-slate-700" style="display: none;"></div>
+    `;
+
+    document.querySelectorAll('.path-btn').forEach(btn => {
+        btn.classList.remove('bg-teal-500', 'text-white');
+        btn.classList.add('bg-white', 'text-slate-700', 'border', 'border-slate-300');
+    });
+    
+    const activeBtn = document.querySelector(`.path-btn[onclick="showPath('${level}')"]`);
+    activeBtn.classList.add('bg-teal-500', 'text-white');
+    activeBtn.classList.remove('bg-white', 'text-slate-700', 'border', 'border-slate-300');
+}
+
+async function generateStudyPlan(button) {
+    const resultContainer = document.getElementById('gemini-plan-result');
+    const originalButtonText = button.innerHTML;
+    button.innerHTML = '<div class="gemini-loader"></div><span class="ml-2">Generating...</span>';
+    button.disabled = true;
+
+    const path = learningPaths[currentLevel];
+    const appNames = path.apps.map(id => appData.find(a => a.id === id).name).join(', ');
+
+    const prompt = `Create a simple, actionable 7-day study plan for an English learner at the ${currentLevel} level. The plan should integrate these specific apps: ${appNames}. For each day, provide 1-2 clear tasks, mentioning which app to use for each task. The tone should be encouraging and clear. Format the output as simple HTML with a <h4> for each day (e.g., <h4>Day 1: Focus on Foundations</h4>) followed by an unordered list (<ul>) of tasks.`;
+
+    try {
+        const text = await callGeminiAPI(prompt);
+        resultContainer.innerHTML = text;
+        resultContainer.style.display = 'block';
+    } catch (error) {
+        console.error("Gemini API call failed:", error);
+        resultContainer.innerHTML = '<p class="text-red-500">Sorry, we couldn\'t generate a plan right now. Please try again later.</p>';
+        resultContainer.style.display = 'block';
+    } finally {
+        button.innerHTML = originalButtonText;
+        button.disabled = false;
+    }
+}
+
+async function generateConversationTopic(button) {
+    const resultContainer = document.getElementById('gemini-topic-result');
+    const originalButtonText = button.innerHTML;
+    button.innerHTML = '<div class="gemini-loader"></div><span class="ml-2">Thinking...</span>';
+    button.disabled = true;
+
+    const prompt = "Generate one interesting, open-ended conversation starter topic suitable for an intermediate English language learner to discuss with an AI tutor. The topic should be a single question. Do not add any preamble or extra text, just the question.";
+    
+    try {
+        const text = await callGeminiAPI(prompt);
+        resultContainer.textContent = text;
+    } catch (error) {
+        console.error("Gemini API call failed:", error);
+        resultContainer.textContent = 'Could not get a topic. Please try again.';
+    } finally {
+        button.innerHTML = originalButtonText;
+        button.disabled = false;
+    }
+}
+
+async function callGeminiAPI(prompt) {
+    const apiKey = ""; // API key will be injected by the environment
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+    
+    const payload = {
+        contents: [{
+            role: "user",
+            parts: [{ text: prompt }]
+        }]
+    };
+
+    const response = await fetch(apiUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+    }
+
+    const result = await response.json();
+    
+    if (result.candidates && result.candidates.length > 0 &&
+        result.candidates[0].content && result.candidates[0].content.parts &&
+        result.candidates[0].content.parts.length > 0) {
+        return result.candidates[0].content.parts[0].text;
+    } else {
+        throw new Error("Invalid response structure from API");
+    }
+}
+
+document.getElementById('modal-backdrop').addEventListener('click', (e) => {
+    if (e.target.id === 'modal-backdrop') {
+        closeModal();
+    }
+});
+
+</script>
+</body>
+</html>
